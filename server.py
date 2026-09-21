@@ -7,14 +7,6 @@ MCP-сервер для управления локальным Rust dedicated s
     +server.ip 127.0.0.1 +server.port 28015 \
     +rcon.ip 127.0.0.1 +rcon.port 28016 \
     +rcon.password "СЕКРЕТНЫЙ_ПАРОЛЬ" +rcon.web true
-
-Конфигурация читается через python-decouple: из .env-файла в корне проекта
-(см. .env.example) либо из переменных окружения — что найдётся первым.
-
-  RCON_HOST     - хост RCON (по умолчанию 127.0.0.1)
-  RCON_PORT     - порт RCON (по умолчанию 28016)
-  RCON_PASSWORD - пароль RCON (обязателен, без значения по умолчанию)
-  RCON_TIMEOUT  - таймаут ожидания ответа в секундах (по умолчанию 5)
 """
 
 import asyncio
@@ -27,6 +19,8 @@ from decouple import config
 
 from mcp.server.fastmcp import FastMCP
 
+import access_control
+
 mcp = FastMCP("rust-rcon")
 
 # ---------------------------------------------------------------------------
@@ -37,6 +31,16 @@ RCON_HOST = config("RCON_HOST", default="127.0.0.1")
 RCON_PORT = config("RCON_PORT", default="28016")
 RCON_PASSWORD = config("RCON_PASSWORD", default=None)
 RCON_TIMEOUT = config("RCON_TIMEOUT", default=5, cast=float)
+
+# Уровень доступа этого развёртывания MCP-сервера: safe / basic / full.
+# По умолчанию — самый строгий ("safe"), чтобы случайный запуск без .env
+# не давал нейронке полный доступ к серверу.
+ACCESS_LEVEL = config("ACCESS_LEVEL", default="safe")
+if ACCESS_LEVEL not in access_control.ACCESS_LEVELS:
+    raise RuntimeError(
+        f"Некорректный ACCESS_LEVEL={ACCESS_LEVEL!r}. "
+        f"Допустимые значения: {', '.join(access_control.ACCESS_LEVELS)}"
+    )
 
 _id_counter = itertools.count(1)
 
@@ -87,16 +91,42 @@ async def _send_rcon_command(command: str, timeout: float = RCON_TIMEOUT) -> str
 @mcp.tool()
 async def rcon_command(command: str) -> str:
     """
-    Выполняет ЛЮБУЮ административную команду на консоли Rust-сервера через RCON.
+    Выполняет административную команду на консоли Rust-сервера через RCON —
+    в пределах текущего уровня доступа этого развёртывания (см. get_access_level).
 
-    Полный доступ администратора: status, playerlist, serverinfo, say,
-    console.tail 50, kick <id>, ban <id>, giveall <item>, изменение конвар
-    (например server.maxplayers 20), saveall, quit и т.д.
+    На уровне "safe" разрешены только команды чтения (status, playerlist,
+    console.tail и т.д.). На "basic" — плюс взаимодействие с миром/постройками.
+    На "full" — вообще всё, включая kill/kick/ban/giveall/quit.
 
     Аргументы:
       command: строка команды ровно в том виде, как она вводится в консоли сервера.
     """
+    if not access_control.is_allowed(command, ACCESS_LEVEL):
+        required = access_control.required_level(command)
+        return (
+            f"Команда отклонена: она требует уровень доступа '{required}', "
+            f"а текущий уровень этого сервера — '{ACCESS_LEVEL}'.\n"
+            f"Чтобы выполнить такую команду, перезапустите MCP-сервер с "
+            f"ACCESS_LEVEL={required} (или выше) в .env."
+        )
     return await _send_rcon_command(command)
+
+
+@mcp.tool()
+def get_access_level() -> str:
+    """
+    Возвращает текущий уровень доступа этого MCP-сервера и что он разрешает.
+    Полезно вызвать перед тем, как объяснять пользователю, почему команда
+    была отклонена, или что вообще доступно прямо сейчас.
+    """
+    lines = [f"Текущий уровень доступа: {ACCESS_LEVEL}"]
+    lines.append(f"  Разрешено: {access_control.describe_level(ACCESS_LEVEL)}")
+    lines.append("")
+    lines.append("Все уровни (от строгого к полному):")
+    for level in access_control.ACCESS_LEVELS:
+        marker = " <- текущий" if level == ACCESS_LEVEL else ""
+        lines.append(f"  {level}: {access_control.describe_level(level)}{marker}")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
