@@ -1,0 +1,16 @@
+
+{
+  "mcpServers": {
+    "rust-rcon": {
+      "command": "python",
+      "args": [
+        "/ПУТЬ/ДО/rust-mcp-server/server.py"
+      ],
+      "env": {
+        "RCON_HOST": "127.0.0.1",
+        "RCON_PORT": "28016",
+        "RCON_PASSWORD": "dev_secret_password"
+      }
+    }
+  }
+}

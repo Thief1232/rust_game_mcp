@@ -58,8 +58,13 @@ mcp dev server.py
 ## Подключение в Claude Desktop
 
 Скопируйте `claude_desktop_config.example.json` в конфиг Claude Desktop
-(обычно `~/.config/Claude/claude_desktop_config.json` на Linux), поправьте
-путь к `server.py` и пароль, перезапустите Claude Desktop.
+(обычно `~/.config/Claude/claude_desktop_config.json` на Linux). В нём нужно
+поправить два абсолютных пути на свои (`.venv/bin/python` — специально не
+просто `python`, чтобы Claude Desktop использовал интерпретатор из venv
+проекта со всеми зависимостями, а не системный) и при желании — `RCON_PASSWORD`
+в `env` (необязательно, если он уже есть в `.env`: `python-decouple` находит
+`.env` рядом с исходниками проекта независимо от того, откуда Claude Desktop
+запустил процесс). После правки перезапустите Claude Desktop.
 
 После этого в обычном чате можно писать, например:
 
