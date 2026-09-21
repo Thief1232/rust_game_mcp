@@ -28,11 +28,11 @@ pip install -r requirements.txt
 +rcon.ip 127.0.0.1 +rcon.port 28016 +rcon.password "dev_secret_password" +rcon.web true
 ```
 
-Конфигурация читается через `python-decouple` — скопируйте `.env.example` в `.env`
-и заполните своими значениями:
+Конфигурация читается через `python-decouple` — скопируйте `example/.env.example`
+в `.env` и заполните своими значениями:
 
 ```bash
-cp .env.example .env
+cp example/.env.example .env
 # отредактируйте .env своим паролем
 ```
 
@@ -57,14 +57,17 @@ mcp dev server.py
 
 ## Подключение в Claude Desktop
 
-Скопируйте `claude_desktop_config.example.json` в конфиг Claude Desktop
-(обычно `~/.config/Claude/claude_desktop_config.json` на Linux). В нём нужно
-поправить два абсолютных пути на свои (`.venv/bin/python` — специально не
-просто `python`, чтобы Claude Desktop использовал интерпретатор из venv
-проекта со всеми зависимостями, а не системный) и при желании — `RCON_PASSWORD`
-в `env` (необязательно, если он уже есть в `.env`: `python-decouple` находит
-`.env` рядом с исходниками проекта независимо от того, откуда Claude Desktop
-запустил процесс). После правки перезапустите Claude Desktop.
+Скопируйте `example/claude_desktop_config.example.json` в конфиг Claude Desktop
+(обычно `~/.config/Claude/claude_desktop_config.json` на Linux — **только если
+это у вас именно отдельное классическое приложение Claude Desktop**; если вы
+используете Claude Code, этот файл вам не подходит, см. следующий раздел). В
+нём нужно поправить два абсолютных пути на свои (`.venv/bin/python` —
+специально не просто `python`, чтобы Claude Desktop использовал интерпретатор
+из venv проекта со всеми зависимостями, а не системный) и при желании —
+`RCON_PASSWORD` в `env` (необязательно, если он уже есть в `.env`:
+`python-decouple` находит `.env` рядом с исходниками проекта независимо от
+того, откуда Claude Desktop запустил процесс). После правки перезапустите
+Claude Desktop.
 
 После этого в обычном чате можно писать, например:
 
@@ -73,6 +76,42 @@ mcp dev server.py
 - «Какие конвары есть у Carbon для управления лутом?» →
   `fetch_json_resource("carbon-convars")`
 - «Почитай введение в API Rustlas» → `fetch_rendered_resource("rustlas-docs")`
+
+## Подключение в Claude Code
+
+Claude Code не читает `claude_desktop_config.json` — это формат отдельного
+классического приложения Claude Desktop. У Claude Code свой механизм
+регистрации MCP-серверов: команда `claude mcp add`.
+
+Зарегистрировать сервер глобально для пользователя (доступен из любой сессии
+Claude Code, независимо от того, в какой папке вы находитесь):
+
+```bash
+claude mcp add rust-rcon --scope user -- \
+  /ABSOLUTE/PATH/TO/rust_game_mcp/.venv/bin/python \
+  /ABSOLUTE/PATH/TO/rust_game_mcp/server.py
+```
+
+Как и в случае с Claude Desktop, `RCON_PASSWORD` отдельно передавать не нужно
+(флагом `-e`) — `python-decouple` сам найдёт `.env` рядом с исходниками
+проекта. Проверить, что подключение прошло:
+
+```bash
+claude mcp list
+# rust-rcon: ... - ✔ Connected
+```
+
+Другие доступные scope у `claude mcp add`:
+
+- `--scope local` (по умолчанию, если флаг не указан) — сервер виден только
+  вам и только в текущем проекте;
+- `--scope project` — пишет в `.mcp.json` в корне репозитория, который можно
+  закоммитить и раздать команде (тогда пароль лучше не прописывать флагом
+  `-e`, чтобы не закоммитить секрет вместе с файлом, — пусть остаётся в
+  локальном `.env` у каждого).
+
+Дальше в чате Claude Code тулы работают так же, как в Claude Desktop — можно
+писать те же запросы, что в примерах выше.
 
 ## Подключение из ChatGPT
 
