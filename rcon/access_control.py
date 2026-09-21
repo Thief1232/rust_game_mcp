@@ -54,13 +54,34 @@ COMMAND_RULES: list[tuple[str, str]] = [
 ]
 
 
-def required_level(command: str) -> str:
-    """Определяет минимальный уровень доступа, необходимый для команды."""
+# Некоторые консольные реализации (в духе Source-движка) позволяют склеивать
+# несколько команд в одной строке через ';' или перевод строки. Проверка
+# только префикса позволила бы протащить опасную команду после безопасной
+# (например "status; ban 123" совпало бы с правилом "status" -> safe).
+# Поэтому строка сначала бьётся на сегменты, и берётся максимальный уровень
+# среди них — это не даёт снизить итоговый уровень безопасным префиксом.
+_COMMAND_SEPARATORS = re.compile(r"[;\n]")
+
+
+def _required_level_single(command: str) -> str:
     cmd = command.strip()
     for pattern, level in COMMAND_RULES:
         if re.match(pattern, cmd, re.IGNORECASE):
             return level
     return DEFAULT_LEVEL_FOR_UNKNOWN
+
+
+def required_level(command: str) -> str:
+    """Определяет минимальный уровень доступа, необходимый для команды.
+
+    Если строка содержит несколько команд, разделённых ';' или переводом
+    строки, возвращается максимальный (самый строгий) уровень среди всех
+    сегментов.
+    """
+    segments = [seg for seg in _COMMAND_SEPARATORS.split(command) if seg.strip()]
+    if not segments:
+        return DEFAULT_LEVEL_FOR_UNKNOWN
+    return max((_required_level_single(seg) for seg in segments), key=_LEVEL_RANK.__getitem__)
 
 
 def is_allowed(command: str, current_level: str) -> bool:
