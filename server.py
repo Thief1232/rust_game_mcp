@@ -26,8 +26,7 @@ MCP-сервер для управления локальным Rust dedicated s
   rcon/access_control.py     - классификация RCON-команд по уровням доступа
   rcon/tools.py               - тулы rcon_command / get_access_level
   resources/catalog.py         - allowlist справочных ресурсов и их загрузка
-  resources/tools.py            - тулы fetch_json_resource / fetch_rendered_resource /
-                                  list_allowed_resources
+  resources/tools.py            - тулы fetch_json_resource / list_allowed_resources
 """
 
 from mcp_app import mcp, TRANSPORT

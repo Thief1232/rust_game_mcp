@@ -1,13 +1,9 @@
 # rust-rcon MCP server
 
 MCP-сервер, который даёт нейронке доступ к консоли Rust dedicated server через
-WebSocket RCON (полный набор админ-команд) плюс доступ к трём справочным
-ресурсам без локального браузера:
-
-- `convars.json` / `commands.json` — обычные JSON, тянутся напрямую через `httpx`.
-- `rustlas.com/api/docs` — это SPA (контент рендерится JS), поэтому используется
-  бесплатный hosted-рендерер [Jina Reader](https://r.jina.ai/) вместо локального
-  Firefox/Selenium — он рендерит страницу на своей стороне и отдаёт чистый текст.
+WebSocket RCON (полный набор админ-команд) плюс доступ к справочным JSON-файлам
+Carbon по конварам/командам (`convars.json` / `commands.json`, тянутся напрямую
+через `httpx`).
 
 ## Установка (Arch-based)
 
@@ -75,7 +71,6 @@ Claude Desktop.
 - «Забань игрока с id 12345» → `rcon_command("ban 12345")`
 - «Какие конвары есть у Carbon для управления лутом?» →
   `fetch_json_resource("carbon-convars")`
-- «Почитай введение в API Rustlas» → `fetch_rendered_resource("rustlas-docs")`
 
 ## Подключение в Claude Code
 
@@ -164,7 +159,6 @@ HTTP (транспорт `streamable-http`). Порядок действий:
 | `rcon_command(command)` | Выполняет команду консоли в пределах текущего `ACCESS_LEVEL` |
 | `get_access_level()` | Показывает текущий уровень доступа и что разрешено на каждом |
 | `fetch_json_resource(resource)` | Тянет `carbon-convars` / `carbon-commands` напрямую через httpx |
-| `fetch_rendered_resource(resource)` | Тянет `rustlas-docs` через Jina Reader (рендерит JS за вас) |
 | `list_allowed_resources()` | Показывает все доступные ресурсы и их URL |
 
 ## Структура проекта
@@ -178,8 +172,8 @@ rcon/
   access_control.py         классификация команд по уровням доступа (safe/basic/full)
   tools.py                    тулы rcon_command / get_access_level
 resources/
-  catalog.py               allowlist справочных ресурсов (JSON_RESOURCES/RENDERED_RESOURCES) и их загрузка
-  tools.py                    тулы fetch_json_resource / fetch_rendered_resource / list_allowed_resources
+  catalog.py               allowlist справочных ресурсов (JSON_RESOURCES) и их загрузка
+  tools.py                    тулы fetch_json_resource / list_allowed_resources
 ```
 
 ## Важно про безопасность
@@ -193,10 +187,7 @@ resources/
   конвар), явно поднимите `ACCESS_LEVEL=full` в `.env`. Чтобы изменить,
   какие команды к какому уровню относятся, правьте `COMMAND_RULES` в
   `rcon/access_control.py`.
-- Доступ к внешним ресурсам жёстко ограничен статическими словарями
-  `JSON_RESOURCES` / `RENDERED_RESOURCES` в `resources/catalog.py` —
-  нейронка выбирает только по ключу (`"carbon-convars"` и т.д.), произвольный
-  URL передать нельзя. Чтобы добавить ресурс, правьте эти словари там же.
-- `fetch_rendered_resource` отправляет целевой URL стороннему сервису
-  (r.jina.ai) для рендеринга — это публичный proxy, не гоняйте через него
-  приватные/закрытые страницы.
+- Доступ к внешним ресурсам жёстко ограничен статическим словарём
+  `JSON_RESOURCES` в `resources/catalog.py` — нейронка выбирает только по
+  ключу (`"carbon-convars"` и т.д.), произвольный URL передать нельзя. Чтобы
+  добавить ресурс, правьте этот словарь там же.
